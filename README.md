@@ -5,6 +5,7 @@ App web (PWA) para registrar y controlar clientes de Thunder TV y Black Eye.
 ## Archivos
 - `index.html` — toda la app
 - `sw.js` — funcionamiento sin conexión
+- `manifest.json` e `icon-*.png` — instalación como app
 - `.nojekyll` — evita que GitHub Pages procese el sitio
 
 ## Publicar en GitHub Pages

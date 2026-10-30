@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0A0A0A"><title>Thunder Bajío</title>
+<meta name="theme-color" content="#0A0A0A"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><title>Thunder Bajío</title>
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@1,800&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{--p:#FFE600;--gold:#C9A100;--cream:#FFF9B0;--bg:#0A0A0A;--s:#141414;--s2:#1E1E1E;--b:#2A2A2A;--t:#F5F5F0;--m:#9A9A90;--ok:#22C55E;--warn:#FF9F1C;--bad:#EF4444;--wa:#25D366;--f:'Plus Jakarta Sans',system-ui,sans-serif;--mono:ui-monospace,Menlo,monospace}
@@ -30,6 +30,7 @@ nav button{flex:1;background:none;border:0;padding:8px 2px;color:var(--m);font-s
 .chips{display:flex;gap:6px;overflow:auto;margin:8px 0}.chips button{background:var(--s2);border:1px solid var(--b);border-radius:99px;padding:5px 12px;white-space:nowrap}.chips button.on{background:var(--p);color:#0A0A0A;border-color:var(--p)}
 .empty{text-align:center;color:var(--m);padding:28px 10px}
 @media(prefers-reduced-motion:no-preference){dialog[open]{animation:in .18s ease-out}@keyframes in{from{transform:translateY(12px);opacity:0}}}
+.big{font-size:34px;font-weight:800;color:var(--p);line-height:1.1}[data-theme=light] .big{color:var(--gold)}.sub{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
 </style></head><body>
 <header><div class="logo">THUNDER<small>BAJÍO</small></div><button onclick="tema()" aria-label="Cambiar tema">☀/🌙</button></header>
 <main id="v"></main>
@@ -38,24 +39,24 @@ nav button{flex:1;background:none;border:0;padding:8px 2px;color:var(--m);font-s
 <script>
 const $=s=>document.querySelector(s),K='thunderbajio.v1';
 let db=JSON.parse(localStorage.getItem(K)||'null')||{v:[],c:[],p:[],a:{costoThunder:0,costoBlackeye:0,costoCombo:0,pubThunder:0,pubBlackeye:0,pubCombo:0,revendedor:350,diasAntes:2}};
-let vista='inicio',filtro='todos',q='';
+db.a=Object.assign({costoThunder:0,costoBlackeye:0,pubThunder:0,pubBlackeye:0,revendedor:350,diasAntes:2},db.a);let vista='inicio',filtro='todos',q='';
 const save=()=>localStorage.setItem(K,JSON.stringify(db)),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-const MESES={demo:0,mensual:1,trimestral:3,semestral:6,anual:12},PLAT={thunder:'Thunder TV',blackeye:'Black Eye',combo:'Combo'};
-const $$=n=>'$'+Number(n||0).toLocaleString('es-MX'),fd=d=>new Date(d).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+const MESES={mensual:1,trimestral:3,semestral:6,anual:12},PLAT={thunder:'Thunder TV',blackeye:'Black Eye'},PL=k=>PLAT[k]||k,MET=['Transferencia','OXXO / Efectivo','Depósito','Tarjeta','Otro'];
+const $$=n=>'$'+Number(n||0).toLocaleString('es-MX'),pd=s=>new Date(s+'T00:00:00'),fd=d=>pd(d).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function sumar(base,mod,horas){const d=new Date(base);if(mod==='demo'){return new Date(d.getTime()+(horas||24)*36e5)}d.setMonth(d.getMonth()+MESES[mod]);return d}
-function precio(o){if(o.modalidad==='demo')return 0;const m=MESES[o.modalidad];return(o.vendedorId?db.a.revendedor:db.a['pub'+cap(o.plataforma)])*m}
-function costo(o){return o.modalidad==='demo'?0:db.a['costo'+cap(o.plataforma)]*MESES[o.modalidad]}
+function sumar(base,mod){const d=new Date(base);d.setMonth(d.getMonth()+(MESES[mod]||1));return d}
+function precio(o){const v=o.vendedorId?(vend(o.vendedorId)?.precio||db.a.revendedor):db.a['pub'+cap(o.plataforma)];return(v||0)*(MESES[o.modalidad]||1)}
+function costo(o){return(db.a['costo'+cap(o.plataforma)]||0)*(MESES[o.modalidad]||1)}
 const cap=s=>s[0].toUpperCase()+s.slice(1);
-function estado(c){const h=new Date();h.setHours(0,0,0,0);const dias=Math.ceil((new Date(c.vence)-h)/864e5);return{dias,e:dias<0?'vencido':dias<=5?'por_vencer':'al_dia'}}
+function estado(c){const h=new Date();h.setHours(0,0,0,0);const dias=Math.ceil((pd(c.vence)-h)/864e5);return{dias,e:dias<0?'vencido':dias<=5?'por_vencer':'al_dia'}}
 const lbl={al_dia:'Al día',por_vencer:'Por vencer',vencido:'Vencido'};
 const chip=c=>{const s=estado(c);return`<span class="chip ${s.e}">${s.e==='al_dia'?lbl.al_dia:s.dias<0?'Vencido '+-s.dias+'d':s.dias===0?'Vence hoy':'En '+s.dias+'d'}</span>`};
 const vend=id=>db.v.find(v=>v.id===id),cli=id=>db.c.find(c=>c.id===id);
 /* ---- Calendario y WhatsApp ---- */
 const fmtDT=d=>d.toISOString().replace(/[-:]|\.\d{3}/g,'');
-function evento(c){const i=new Date(c.vence);i.setDate(i.getDate()-Math.min(3,Math.max(1,db.a.diasAntes)));i.setHours(9,0,0,0);
- const titulo=`Cobro ${PLAT[c.plataforma]} - ${c.nombre}`,desc=[`Cliente: ${c.nombre} (${c.tel})`,`Vendedor: ${vend(c.vendedorId)?.nombre||'Venta directa'}`,`Vence: ${fd(c.vence)}`,`Monto a cobrar: ${$$(c.monto)} MXN`,`Usuario: ${c.usuario||'—'}`,`Dispositivo: ${c.dispositivo}`].join('\n');
+function evento(c){const i=pd(c.vence);i.setDate(i.getDate()-Math.min(3,Math.max(1,db.a.diasAntes)));i.setHours(9,0,0,0);
+ const titulo=`Cobro ${PL(c.plataforma)} - ${c.nombre}`,desc=[`Cliente: ${c.nombre} (${c.tel})`,`Vendedor: ${vend(c.vendedorId)?.nombre||'Venta directa'}`,`Vence: ${fd(c.vence)}`,`Monto a cobrar: ${$$(c.monto)} MXN`,`Usuario: ${c.usuario||'—'}`,`Dispositivo: ${c.dispositivo}`].join('\n');
  return{i,f:new Date(i.getTime()+18e5),titulo,desc}}
 function gcal(id){const c=cli(id),e=evento(c);open('https://calendar.google.com/calendar/render?'+new URLSearchParams({action:'TEMPLATE',text:e.titulo,dates:fmtDT(e.i)+'/'+fmtDT(e.f),details:e.desc,ctz:'America/Mexico_City'}),'_blank')}
 function ics(id){const c=cli(id),e=evento(c),x=s=>s.replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
@@ -63,67 +64,81 @@ function ics(id){const c=cli(id),e=evento(c),x=s=>s.replace(/\\/g,'\\\\').replac
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/calendar'}));a.download='cobro-'+c.nombre+'.ics';a.click()}
 const wa=(tel,m)=>open('https://wa.me/52'+String(tel).replace(/\D/g,'').slice(-10)+'?text='+encodeURIComponent(m),'_blank');
 function waAcc(id){const c=cli(id);wa(c.tel,`¡Hola ${c.nombre}! ⚡ Bienvenido a Thunder Bajío.\nTu usuario: ${c.usuario||'—'}\nVigencia hasta: ${fd(c.vence)}`)};
-function waCorte(id){const c=cli(id);wa(c.tel,`Hola ${c.nombre} 👋 tu servicio ${PLAT[c.plataforma]} vence el ${fd(c.vence)}.\nMonto a renovar: ${$$(c.monto)} MXN. ¿Te comparto los datos de pago?`)};
+function waCorte(id){const c=cli(id);wa(c.tel,`Hola ${c.nombre} 👋 tu servicio ${PL(c.plataforma)} vence el ${fd(c.vence)}.\nMonto a renovar: ${$$(c.monto)} MXN. ¿Te comparto los datos de pago?`)};
 /* ---- Vistas ---- */
 function nav(){$('#nav').innerHTML=[['inicio','⚡','Inicio'],['clientes','👥','Clientes'],['vendedores','🤝','Vendedores'],['finanzas','💰','Finanzas']].map(([k,i,t])=>`<button class="${vista===k?'on':''}" onclick="ir('${k}')">${i}<br>${t}</button>`).join('')}
 function ir(v){vista=v;render()}
 function setQ(v){q=v;lista()}
 function setF(f){filtro=f;render()}
 function setA(k,v){db.a[k]=+v;save()}
-function fila(c){return`<div class="card row" onclick="ficha('${c.id}')"><div class="i"><b>${esc(c.nombre)}</b><small>${PLAT[c.plataforma]} · ${c.modalidad} · ${vend(c.vendedorId)?esc(vend(c.vendedorId).nombre):'Directa'} · ${$$(c.monto)}</small></div>${chip(c)}</div>`}
+function fila(c){return`<div class="card row" onclick="ficha('${c.id}')"><div class="i"><b>${esc(c.nombre)}</b><small>${PL(c.plataforma)} · ${c.modalidad} · ${vend(c.vendedorId)?esc(vend(c.vendedorId).nombre):'Directa'} · ${$$(c.monto)}</small></div>${chip(c)}</div>`}
 function listaHTML(){const l=db.c.filter(c=>(filtro==='todos'||estado(c).e===filtro)&&(c.nombre+c.tel+c.usuario).toLowerCase().includes(q.toLowerCase())).sort((a,b)=>new Date(a.vence)-new Date(b.vence));return l.length?l.map(fila).join(''):'<div class="empty">No hay clientes con ese filtro.</div>'}
 function lista(){$('#listaC').innerHTML=listaHTML()}
 function render(){nav();const m=$('#v');
- if(vista==='inicio'){const E=db.c.map(estado),n=k=>E.filter(x=>x.e===k).length,prox=db.c.filter(c=>estado(c).e!=='al_dia').sort((a,b)=>new Date(a.vence)-new Date(b.vence)),por=prox.reduce((s,c)=>s+c.monto,0);
+ if(vista==='inicio'){const E=db.c.map(estado),n=k=>E.filter(x=>x.e===k).length,prox=db.c.filter(c=>estado(c).e!=='al_dia').sort((a,b)=>pd(a.vence)-pd(b.vence)),por=prox.reduce((s,c)=>s+c.monto,0);
   m.innerHTML=`<div class="grid"><div class="card kpi"><b>${n('al_dia')}</b><span>Al día</span></div><div class="card kpi"><b style="color:var(--warn)">${n('por_vencer')}</b><span>Por vencer</span></div><div class="card kpi"><b style="color:var(--bad)">${n('vencido')}</b><span>Vencidos</span></div><div class="card kpi"><b>${$$(por)}</b><span>Por cobrar</span></div></div>
   <div class="acts"><button class="btn" onclick="formCliente()">+ Nuevo cliente</button></div><h2>Cobros pendientes</h2>${prox.length?prox.slice(0,12).map(fila).join(''):'<div class="empty">Sin cobros pendientes. Agrega tu primer cliente con “Nuevo cliente”.</div>'}`}
  if(vista==='clientes'){m.innerHTML=`<div class="acts"><input id="q" placeholder="Buscar nombre, teléfono o usuario" value="${esc(q)}" oninput="setQ(this.value)" style="flex:1;margin:0"><button class="btn" onclick="formCliente()">+ Nuevo</button></div>
   <div class="chips">${['todos','al_dia','por_vencer','vencido'].map(f=>`<button class="${filtro===f?'on':''}" onclick="setF('${f}')">${f==='todos'?'Todos':lbl[f]}</button>`).join('')}</div><div id="listaC">${listaHTML()}</div>`}
- if(vista==='vendedores'){m.innerHTML=`<div class="acts"><button class="btn" onclick="nuevoVend()">+ Nuevo vendedor</button></div>`+(db.v.length?db.v.map(v=>{const cs=db.c.filter(c=>c.vendedorId===v.id),act=cs.filter(c=>estado(c).e!=='vencido').length,deb=cs.reduce((s,c)=>s+c.facturado,0),pag=db.p.filter(p=>p.vendedorId===v.id).reduce((s,p)=>s+p.monto,0),sal=deb-pag;
-   return`<div class="card"><div class="row" style="cursor:default"><div class="i"><b>${esc(v.nombre)}</b><small>${act} cuentas activas · ${cs.length} en total</small></div><span class="chip ${sal<=0?'al_dia':pag>0?'por_vencer':'vencido'}">${sal<=0?'Liquidado':pag>0?'Parcial':'Pendiente'}</span></div>
-   <div class="two" style="margin-top:8px"><small>Por cobrar: <b>${$$(deb)}</b></small><small>Pagado: <b>${$$(pag)}</b></small></div><b>Saldo: ${$$(Math.max(sal,0))}</b><div class="acts"><button class="btn sm" onclick="pago('vend','${v.id}',${Math.max(sal,0)})">Registrar liquidación</button><button class="btn sm wa" onclick="estCuenta('${v.id}')">Estado de cuenta</button></div></div>`}).join(''):'<div class="empty">Aún no hay vendedores. Agrega uno para asignarle cuentas a $'+db.a.revendedor+'.</div>')}
- if(vista==='finanzas'){const g=(l)=>{const cs=db.c.filter(l),f=cs.reduce((s,c)=>s+c.facturado,0),k=cs.reduce((s,c)=>s+c.costo,0);return{f,k,n:f-k}},rv=g(c=>c.vendedorId),dr=g(c=>!c.vendedorId),A=db.a;
-  m.innerHTML=`<h2>Margen neto</h2><div class="grid"><div class="card kpi"><b>${$$(rv.n+dr.n)}</b><span>Margen total</span></div><div class="card kpi"><b>${$$(rv.n)}</b><span>Vendedores (${$$(rv.f)} − ${$$(rv.k)})</span></div><div class="card kpi"><b>${$$(dr.n)}</b><span>Venta directa (${$$(dr.f)} − ${$$(dr.k)})</span></div></div>
-  <h2>Tarifas y costos</h2><div class="card"><div class="two">${[['revendedor','Precio a vendedor/mes'],['pubThunder','Público Thunder TV/mes'],['pubBlackeye','Público Black Eye/mes'],['pubCombo','Público Combo/mes'],['costoThunder','Costo crédito Thunder'],['costoBlackeye','Costo crédito Black Eye'],['costoCombo','Costo crédito Combo'],['diasAntes','Recordatorio (1 a 3 días antes)']].map(([k,t])=>`<label>${t}<input type="number" min="0" value="${A[k]}" onchange="setA('${k}',this.value)"></label>`).join('')}</div></div>
+ if(vista==='vendedores'){m.innerHTML=`<div class="acts"><button class="btn" onclick="vendForm()">+ Nuevo vendedor</button></div>`+(db.v.length?db.v.map(v=>{const cs=db.c.filter(c=>c.vendedorId===v.id),act=cs.filter(c=>estado(c).e!=='vencido').length,deb=cs.reduce((s,c)=>s+c.facturado,0),pag=db.p.filter(p=>p.vendedorId===v.id).reduce((s,p)=>s+p.monto,0),sal=deb-pag,gv=cs.reduce((s,c)=>s+c.facturado-c.costo,0);
+   return`<div class="card"><div class="row" style="cursor:default"><div class="i"><b>${esc(v.nombre)}</b><small>${act} activas · ${cs.length} en total · ${$$(v.precio||db.a.revendedor)}/mes</small></div><span class="chip ${sal<=0?'al_dia':pag>0?'por_vencer':'vencido'}">${sal<=0?'Liquidado':pag>0?'Parcial':'Pendiente'}</span></div>
+   <div class="two" style="margin-top:8px"><small>Por cobrar: <b>${$$(deb)}</b></small><small>Pagado: <b>${$$(pag)}</b></small></div><b>Saldo: ${$$(Math.max(sal,0))}</b> <small>· Tu ganancia: ${$$(gv)}</small><div class="acts"><button class="btn sm" onclick="pagoVend('${v.id}',${Math.max(sal,0)})">Registrar liquidación</button><button class="btn sm wa" onclick="estCuenta('${v.id}')">Estado de cuenta</button><button class="btn sm o" onclick="vendForm('${v.id}')">Editar</button></div></div>`}).join(''):'<div class="empty">Aún no hay vendedores. Agrega uno para asignarle cuentas.</div>')}
+ if(vista==='finanzas'){const g=l=>{const cs=db.c.filter(l),f=cs.reduce((s,c)=>s+c.facturado,0),k=cs.reduce((s,c)=>s+c.costo,0);return{f,k,n:f-k,c:cs.length}},rv=g(c=>c.vendedorId),dr=g(c=>!c.vendedorId),F=rv.f+dr.f,K=rv.k+dr.k,A=db.a,bx=(t,x)=>`<div class="card"><b>${t}</b> <small>(${x.c} cuentas)</small><div class="sub"><span>Cobrado</span><b>${$$(x.f)}</b></div><div class="sub"><span>Costo de crédito</span><b>${$$(x.k)}</b></div><div class="sub"><span>Ganancia</span><b>${$$(x.n)}</b></div></div>`;
+  m.innerHTML=`<div class="card" style="border-color:var(--p)"><small>GANANCIA TOTAL</small><div class="big">${$$(F-K)}</div><small>Cobrado ${$$(F)} − Costo de crédito ${$$(K)}</small></div>${K===0?'<small>Captura tu costo de crédito abajo para ver la ganancia real.</small>':''}
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:10px">${bx('Vendedores',rv)}${bx('Venta al público',dr)}</div>
+  <h2>Ganancia por cuenta (1 mes)</h2><div class="card">${[['Thunder TV','Thunder'],['Black Eye','Blackeye']].map(([t,k])=>`<div class="sub"><span>${t}</span><span>Vendedor <b>${$$(A.revendedor-A['costo'+k])}</b> · Público <b>${$$(A['pub'+k]-A['costo'+k])}</b></span></div>`).join('')}</div>
+  <h2>Tarifas y costos</h2><div class="card"><div class="two">${[['revendedor','Precio por defecto a vendedor/mes'],['pubThunder','Precio público Thunder TV/mes'],['pubBlackeye','Precio público Black Eye/mes'],['costoThunder','Costo de crédito Thunder TV'],['costoBlackeye','Costo de crédito Black Eye'],['diasAntes','Recordatorio (1 a 3 días antes)']].map(([k,t])=>`<label>${t}<input type="number" min="0" value="${A[k]}" onchange="setA('${k}',this.value)"></label>`).join('')}</div></div>
   <h2>Respaldo</h2><div class="acts"><button class="btn o" onclick="exportar()">Descargar respaldo</button><label class="btn o" style="margin:0">Restaurar<input type="file" accept=".json" hidden onchange="importar(this.files[0])"></label></div><small>Los datos viven solo en este dispositivo. Descarga un respaldo seguido.</small>`}}
 function estCuenta(id){const v=vend(id),cs=db.c.filter(c=>c.vendedorId===id),deb=cs.reduce((s,c)=>s+c.facturado,0),pag=db.p.filter(p=>p.vendedorId===id).reduce((s,p)=>s+p.monto,0);
  wa(v.tel||'',`Hola ${v.nombre} ⚡ Estado de cuenta Thunder Bajío:\nCuentas: ${cs.length}\nPor cobrar: ${$$(deb)}\nPagado: ${$$(pag)}\nSaldo: ${$$(Math.max(deb-pag,0))}`)}
-function nuevoVend(){const n=prompt('Nombre del vendedor');if(!n)return;const t=prompt('WhatsApp (opcional)')||'';db.v.push({id:uid(),nombre:n,tel:t});save();render()}
+function vendForm(id){const v=id?vend(id):{nombre:'',tel:'',precio:db.a.revendedor};
+ dlg.innerHTML=`<h2 style="margin-top:0">${id?'Editar':'Nuevo'} vendedor</h2><form onsubmit="guardarV(event,'${id||''}')"><label>Nombre<input name="nombre" required value="${esc(v.nombre)}"></label><div class="two"><label>WhatsApp<input name="tel" type="tel" value="${esc(v.tel)}"></label><label>Precio por cuenta/mes (MXN)<input name="precio" type="number" min="0" required value="${v.precio||db.a.revendedor}"></label></div><small>Un cambio de precio aplica a los cobros nuevos, no a los ya registrados.</small><div class="acts"><button class="btn">Guardar</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button>${id?`<button type="button" class="btn d sm" onclick="borrarV('${id}')" style="margin-left:auto">Eliminar</button>`:''}</div></form>`;dlg.showModal()}
+function guardarV(e,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target)),o={nombre:d.nombre,tel:d.tel,precio:+d.precio};if(id)Object.assign(vend(id),o);else db.v.push({id:uid(),...o});save();cerrar();render()}
+function borrarV(id){const n=db.c.filter(c=>c.vendedorId===id).length;if(n){alert('Este vendedor tiene '+n+' cliente(s). Cámbialos de vendedor desde su ficha (Editar) antes de eliminarlo.');return}if(confirm('¿Eliminar este vendedor?')){db.v=db.v.filter(v=>v.id!==id);save();cerrar();render()}}
 const dlg=$('#dlg');function cerrar(){dlg.close()}
 function ficha(id){const c=cli(id),v=vend(c.vendedorId),cp=t=>`<div class="mono"><span>${esc(t)}</span><button class="btn sm o" onclick="navigator.clipboard.writeText(this.dataset.t);this.textContent='Copiado'" data-t="${esc(t)}">Copiar</button></div>`;
- dlg.innerHTML=`<div class="row" style="cursor:default"><div class="i"><h2 style="margin:0">${esc(c.nombre)}</h2><small>${PLAT[c.plataforma]} · ${c.modalidad} · ${v?esc(v.nombre):'Venta directa'} · ${$$(c.monto)}</small></div>${chip(c)}</div><p>Vence el <b>${fd(c.vence)}</b></p>
- <div class="acts"><button class="btn wa sm" onclick="waAcc('${id}')">Enviar accesos</button><button class="btn wa sm" onclick="waCorte('${id}')">Enviar aviso de corte</button><button class="btn sm" onclick="gcal('${id}')">📅 Google Calendar</button><button class="btn o sm" onclick="ics('${id}')">⬇ .ics</button><button class="btn sm" onclick="pago('cli','${id}',${c.monto})">Renovar y cobrar</button></div>
+ dlg.innerHTML=`<div class="row" style="cursor:default"><div class="i"><h2 style="margin:0">${esc(c.nombre)}</h2><small>${PL(c.plataforma)} · ${c.modalidad} · ${v?esc(v.nombre):'Venta directa'} · ${$$(c.monto)}</small></div>${chip(c)}</div><p>Corte: <b>${fd(c.vence)}</b> · Inicio: ${fd(c.inicio)}<br><small>Ganancia por periodo: <b>${$$(c.monto-costo(c))}</b></small></p>
+ <div class="acts"><button class="btn wa sm" onclick="waAcc('${id}')">Enviar accesos</button><button class="btn wa sm" onclick="waCorte('${id}')">Enviar aviso de corte</button><button class="btn sm" onclick="gcal('${id}')">📅 Google Calendar</button><button class="btn o sm" onclick="ics('${id}')">⬇ .ics</button><button class="btn sm" onclick="renovar('${id}')">Renovar y cobrar</button></div>
  <label>Contacto</label>${cp(c.tel)}${c.correo?cp(c.correo):''}<label>Usuario</label>${cp(c.usuario||'—')}<small>Dispositivo: ${esc(c.dispositivo)}</small>
  <div class="acts"><button class="btn o sm" onclick="formCliente('${id}')">Editar</button><button class="btn d sm" onclick="borrar('${id}')">Eliminar</button><button class="btn o sm" onclick="cerrar()" style="margin-left:auto">Cerrar</button></div>`;dlg.showModal()}
 function borrar(id){if(confirm('¿Eliminar este cliente? No se puede deshacer.')){db.c=db.c.filter(c=>c.id!==id);save();cerrar();render()}}
-function formCliente(id){const c=id?cli(id):{id:'',nombre:'',tel:'',correo:'',inicio:iso(new Date()),vendedorId:'',plataforma:'thunder',modalidad:'mensual',horas:24,usuario:'',dispositivo:'Smart TV',monto:0};
+function formCliente(id){const c=id?cli(id):{nombre:'',tel:'',correo:'',inicio:iso(new Date()),vendedorId:'',plataforma:'thunder',modalidad:'mensual',vence:'',usuario:'',dispositivo:'Smart TV',monto:0};
  const o=(a,s)=>a.map(x=>`<option ${x==s?'selected':''}>${x}</option>`).join('');
  dlg.innerHTML=`<h2 style="margin-top:0">${id?'Editar':'Nuevo'} cliente</h2><form id="f" onsubmit="guardar(event,'${id||''}')">
  <label>Nombre o alias<input name="nombre" required value="${esc(c.nombre)}"></label><div class="two"><label>WhatsApp<input name="tel" type="tel" required value="${esc(c.tel)}"></label><label>Correo<input name="correo" type="email" value="${esc(c.correo)}"></label></div>
- <div class="two"><label>Fecha de inicio<input name="inicio" type="date" required value="${c.inicio}" onchange="pr()"></label><label>Origen<select name="origen" onchange="pr()"><option value="directa">Venta directa</option><option value="vendedor" ${c.vendedorId?'selected':''}>Vendedor / Revendedor</option></select></label></div>
- <label id="lv" ${c.vendedorId?'':'hidden'}>Vendedor<select name="vendedorId" onchange="pr()">${db.v.map(v=>`<option value="${v.id}" ${v.id===c.vendedorId?'selected':''}>${esc(v.nombre)}</option>`).join('')}</select></label>
- <div class="two"><label>Plataforma<select name="plataforma" onchange="pr()">${Object.entries(PLAT).map(([k,t])=>`<option value="${k}" ${k===c.plataforma?'selected':''}>${t}</option>`).join('')}</select></label><label>Modalidad<select name="modalidad" onchange="pr()">${o(Object.keys(MESES),c.modalidad)}</select></label></div>
- <label id="lh" hidden>Horas de demo<input name="horas" type="number" min="1" value="${c.horas}"></label><label>Monto a cobrar (MXN)<input name="monto" type="number" min="0" value="${c.monto}"></label>
+ <div class="two"><label>Fecha de inicio<input name="inicio" type="date" required value="${c.inicio}" onchange="pr(this)"></label><label>Origen<select name="origen" onchange="pr(this)"><option value="directa">Venta directa</option><option value="vendedor" ${c.vendedorId?'selected':''}>Vendedor / Revendedor</option></select></label></div>
+ <label id="lv" hidden>Vendedor<select name="vendedorId" onchange="pr(this)">${db.v.length?db.v.map(v=>`<option value="${v.id}" ${v.id===c.vendedorId?'selected':''}>${esc(v.nombre)}</option>`).join(''):'<option value="">Crea un vendedor primero</option>'}</select></label>
+ <div class="two"><label>Plataforma<select name="plataforma" onchange="pr(this)">${Object.entries(PLAT).map(([k,t])=>`<option value="${k}" ${k===c.plataforma?'selected':''}>${t}</option>`).join('')}</select></label><label>Modalidad<select name="modalidad" onchange="pr(this)">${o(Object.keys(MESES),c.modalidad)}</select></label></div>
+ <div class="two"><label>Fecha de corte<input name="vence" type="date" required value="${c.vence}"></label><label>Monto a cobrar (MXN)<input name="monto" type="number" min="0" required value="${c.monto}" oninput="gan()"></label></div><small id="gn"></small>
  <div class="two"><label>Usuario<input name="usuario" value="${esc(c.usuario)}"></label><label>Dispositivo<select name="dispositivo">${o(['Smart TV','TV Box / Fire TV','Celular','PC'],c.dispositivo)}</select></label></div>
- <div class="acts"><button class="btn">Guardar cliente</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button><button type="button" class="btn o sm" onclick="nuevoVend();formCliente('${id||''}')">+ Vendedor</button></div></form>`;dlg.showModal();pr(!id||0)}
-function pr(auto=1){const f=$('#f');if(!f)return;const d=Object.fromEntries(new FormData(f));$('#lv').hidden=d.origen!=='vendedor';$('#lh').hidden=d.modalidad!=='demo';
- if(d.origen==='vendedor'&&!db.v.length){$('#lv').hidden=false}if(auto&&document.activeElement.name!=='monto')f.elements.monto.value=precio({vendedorId:d.origen==='vendedor'?d.vendedorId||'x':'',plataforma:d.plataforma,modalidad:d.modalidad})}
-function guardar(e,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target));if(d.origen==='vendedor'&&!d.vendedorId){alert('Primero agrega un vendedor con “+ Vendedor”.');return}
- const o={...d,vendedorId:d.origen==='vendedor'?d.vendedorId:'',monto:+d.monto,horas:+d.horas||24};delete o.origen;
- const vence=iso(sumar(d.inicio+'T00:00:00',d.modalidad,o.horas));
- if(id){const c=cli(id);Object.assign(c,o,{vence})}else db.c.push({...o,id:uid(),vence,facturado:o.monto,costo:costo(o)});save();cerrar();render()}
-function pago(tipo,id,monto){dlg.innerHTML=`<h2 style="margin-top:0">${tipo==='cli'?'Renovar y cobrar':'Registrar liquidación'}</h2><form onsubmit="cobrar(event,'${tipo}','${id}')"><label>Monto (MXN)<input name="monto" type="number" min="0" value="${monto}" required></label><label>Método de pago<select name="metodo"><option>Transferencia</option><option>OXXO / Efectivo</option><option>Depósito</option><option>Tarjeta</option><option>Otro</option></select></label><div class="acts"><button class="btn">Confirmar</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button></div></form>`;dlg.showModal()}
-function cobrar(e,tipo,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target)),m=+d.monto;
- if(tipo==='cli'){const c=cli(id),h=new Date();h.setHours(0,0,0,0);const base=new Date(c.vence)>h?c.vence:iso(h);c.vence=iso(sumar(base+'T00:00:00',c.modalidad==='demo'?'mensual':c.modalidad,c.horas));if(c.modalidad==='demo')c.modalidad='mensual';c.facturado+=c.monto;c.costo+=costo(c);db.p.push({id:uid(),clienteId:id,monto:m,metodo:d.metodo,fecha:iso(new Date())})}
- else db.p.push({id:uid(),vendedorId:id,monto:m,metodo:d.metodo,fecha:iso(new Date())});save();cerrar();render()}
+ <div class="acts"><button class="btn">Guardar cliente</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button></div></form>`;dlg.showModal();pr(null,!id)}
+function pr(t,ini){const f=$('#f');if(!f)return;const E=f.elements,d=Object.fromEntries(new FormData(f)),n=t?t.name:'';
+ $('#lv').hidden=d.origen!=='vendedor';
+ if(ini||n==='inicio'||n==='modalidad')E.vence.value=iso(sumar(d.inicio+'T00:00:00',d.modalidad));
+ if(ini||['origen','vendedorId','plataforma','modalidad'].includes(n))E.monto.value=precio({vendedorId:d.origen==='vendedor'?(d.vendedorId||'x'):'',plataforma:d.plataforma,modalidad:d.modalidad});
+ gan()}
+function gan(){const f=$('#f');if(!f)return;const E=f.elements,k=costo({plataforma:E.plataforma.value,modalidad:E.modalidad.value});$('#gn').textContent='Ganancia de esta cuenta: '+$$((+E.monto.value||0)-k)+(k?'':' · captura tu costo de crédito en Finanzas')}
+function guardar(e,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target));if(d.origen==='vendedor'&&!d.vendedorId){alert('Primero crea un vendedor en la pestaña Vendedores.');return}
+ const o={nombre:d.nombre,tel:d.tel,correo:d.correo,inicio:d.inicio,vence:d.vence,plataforma:d.plataforma,modalidad:d.modalidad,usuario:d.usuario,dispositivo:d.dispositivo,monto:+d.monto,vendedorId:d.origen==='vendedor'?d.vendedorId:''};
+ if(id){const c=cli(id),k0=costo(c),k1=costo(o);if((c.monto!==o.monto||k0!==k1)&&confirm('Cambiaste monto, plan o plataforma.\n\nAceptar: corregir también el último cobro registrado.\nCancelar: aplicar solo a la próxima renovación.')){c.facturado+=o.monto-c.monto;c.costo+=k1-k0}Object.assign(c,o)}
+ else db.c.push({...o,id:uid(),facturado:o.monto,costo:costo(o)});save();cerrar();render()}
+function renovar(id){const c=cli(id),late=estado(c).e==='vencido';
+ dlg.innerHTML=`<h2 style="margin-top:0">Renovar a ${esc(c.nombre)}</h2><small>Corte actual: ${fd(c.vence)}</small><form id="rf" onsubmit="cobrar(event,'${id}')">
+ <div class="two"><label>Fecha de pago<input name="fecha" type="date" required value="${iso(new Date())}" onchange="prR('${id}')"></label><label>Vigencia desde<select name="desde" onchange="prR('${id}')"><option value="pago" ${late?'selected':''}>Fecha de pago</option><option value="corte" ${late?'':'selected'}>Corte anterior</option></select></label></div>
+ <div class="two"><label>Plan<select name="modalidad" onchange="prR('${id}',1)">${Object.keys(MESES).map(k=>`<option ${k===c.modalidad?'selected':''}>${k}</option>`).join('')}</select></label><label>Monto (MXN)<input name="monto" type="number" min="0" required value="${c.monto}"></label></div>
+ <label>Método de pago<select name="metodo">${MET.map(x=>`<option>${x}</option>`).join('')}</select></label><p>Nuevo corte: <b id="nv"></b></p>
+ <div class="acts"><button class="btn">Confirmar</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button></div></form>`;dlg.showModal();prR(id)}
+function prR(id,pm){const c=cli(id),E=$('#rf').elements,m=E.modalidad.value;if(pm)E.monto.value=precio({vendedorId:c.vendedorId,plataforma:c.plataforma,modalidad:m});$('#nv').textContent=fd(iso(sumar((E.desde.value==='pago'?E.fecha.value:c.vence)+'T00:00:00',m)))}
+function pagoVend(id,monto){dlg.innerHTML=`<h2 style="margin-top:0">Registrar liquidación</h2><form onsubmit="liquidar(event,'${id}')"><label>Monto (MXN)<input name="monto" type="number" min="0" value="${monto}" required></label><label>Método de pago<select name="metodo">${MET.map(x=>`<option>${x}</option>`).join('')}</select></label><div class="acts"><button class="btn">Confirmar</button><button type="button" class="btn o" onclick="cerrar()">Cancelar</button></div></form>`;dlg.showModal()}
+function liquidar(e,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target));db.p.push({id:uid(),vendedorId:id,monto:+d.monto,metodo:d.metodo,fecha:iso(new Date())});save();cerrar();render()}
+function cobrar(e,id){e.preventDefault();const d=Object.fromEntries(new FormData(e.target)),c=cli(id);
+ c.vence=iso(sumar((d.desde==='pago'?d.fecha:c.vence)+'T00:00:00',d.modalidad));c.modalidad=d.modalidad;c.monto=+d.monto;c.facturado+=c.monto;c.costo+=costo(c);
+ db.p.push({id:uid(),clienteId:id,monto:c.monto,metodo:d.metodo,fecha:d.fecha});save();cerrar();render()}
 function exportar(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='thunder-bajio-'+iso(new Date())+'.json';a.click()}
 function importar(f){if(!f)return;f.text().then(t=>{try{const x=JSON.parse(t);if(!x.c||!x.v)throw 0;db=x;save();render()}catch{alert('Archivo no válido.')}})}
 function tema(){const l=document.documentElement.dataset.theme==='light';document.documentElement.dataset.theme=l?'':'light';localStorage.setItem('tb.tema',l?'':'light')}
 document.documentElement.dataset.theme=localStorage.getItem('tb.tema')||'';
 /* PWA */
-const svg="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='96' fill='%230A0A0A'/><path d='M290 40 130 290h110l-30 182 172-262H270z' fill='%23FFE600'/></svg>";
-const mf={name:'Thunder Bajío',short_name:'Thunder',start_url:'./',display:'standalone',background_color:'#0A0A0A',theme_color:'#0A0A0A',icons:[{src:'data:image/svg+xml,'+svg,sizes:'512x512',type:'image/svg+xml'}]};
-const l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/manifest+json'}));document.head.append(l);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 render();
 </script></body></html>
